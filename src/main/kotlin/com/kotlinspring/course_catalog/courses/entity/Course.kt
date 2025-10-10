@@ -1,4 +1,4 @@
-package com.kotlinspring.course_catalog.entity
+package com.kotlinspring.course_catalog.courses.entity
 
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue

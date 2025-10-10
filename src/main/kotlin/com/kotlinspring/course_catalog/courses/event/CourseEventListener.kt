@@ -1,4 +1,4 @@
-package com.kotlinspring.course_catalog.event
+package com.kotlinspring.course_catalog.courses.event
 
 import com.kotlinspring.course_catalog.Loggable
 import org.springframework.stereotype.Component

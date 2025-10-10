@@ -1,4 +1,4 @@
-package com.kotlinspring.course_catalog.dto
+package com.kotlinspring.course_catalog.courses.dto
 
 data class CourseDTO(
     val id: Int?,

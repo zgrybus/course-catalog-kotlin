@@ -1,9 +1,9 @@
 package com.kotlinspring.course_catalog
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.kotlinspring.course_catalog.dto.CourseDTO
-import com.kotlinspring.course_catalog.entity.Course
-import com.kotlinspring.course_catalog.repository.CourseRepository
+import com.kotlinspring.course_catalog.courses.dto.CourseDTO
+import com.kotlinspring.course_catalog.courses.entity.Course
+import com.kotlinspring.course_catalog.courses.repository.CourseRepository
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
