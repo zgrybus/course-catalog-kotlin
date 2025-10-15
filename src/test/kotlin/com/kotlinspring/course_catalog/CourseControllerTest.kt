@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.kotlinspring.course_catalog.courses.dto.CourseDTO
 import com.kotlinspring.course_catalog.courses.entity.Course
 import com.kotlinspring.course_catalog.courses.repository.CourseRepository
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -13,8 +13,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.put
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -35,45 +37,114 @@ class CourseControllerTest {
     }
 
     @Test
-    internal fun addCourse() {
+    internal fun `should create a new course and return it`() {
         val courseDTO = CourseDTO(id = null, name = "Typescript god", category = "Typescript")
 
-        val result = mockMvc.post("/v1/courses") {
+        val responseBody = mockMvc.post("/v1/courses") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(courseDTO)
         }.andExpect {
             status { isCreated() }
-        }.andReturn()
+        }.andReturn().response.contentAsString
 
-        val responseBody = result.response.contentAsString
         val savedCourseDTO = objectMapper.readValue(responseBody, CourseDTO::class.java)
+        assertNotNull(savedCourseDTO.id)
+        assertEquals(courseDTO.name, savedCourseDTO.name)
+        assertEquals(courseDTO.category, savedCourseDTO.category)
 
-        Assertions.assertTrue {
-            savedCourseDTO.id != null
-            savedCourseDTO.name == "Typescript god"
-            savedCourseDTO.category == "Typescript"
-        }
+        val coursesInDb = courseRepository.findAll()
+        val courseInDb = coursesInDb.first()
+        assertEquals(1, coursesInDb.count())
+        assertEquals(courseDTO.name, courseInDb.name)
+        assertEquals(courseDTO.category, courseInDb.category)
     }
 
     @Test
-    internal fun getAllCourses() {
-        val savedCourses = courseRepository
-            .saveAll(listOf(
-                Course(null, "Typescript bez tajemnic", "Typescript"),
-                Course(null, "Kotlin bez tajemnic", "Kotlin"),
-            ))
-            .map { CourseDTO(id = it.id, name = it.name, category = it.category) }
+    internal fun `should return all created courses`() {
+        courseRepository.saveAll(listOf(
+            Course(null, "Typescript bez tajemnic", "Typescript"),
+            Course(null, "Kotlin bez tajemnic", "Kotlin"),
+        ))
 
-        val result = mockMvc.get("/v1/courses") {
+        val responseBody = mockMvc.get("/v1/courses") {
             contentType = MediaType.APPLICATION_JSON
         }.andExpect {
             status { isOk() }
-        }.andReturn()
+        }.andReturn().response.contentAsString
 
-        val responseBody = result.response.contentAsString
-        val courses = objectMapper.readValue(responseBody, Array<CourseDTO>::class.java)
+        val courses = objectMapper.readValue(responseBody, Array<CourseDTO>::class.java).toList()
+        assertEquals(2, courses.size)
 
-        Assertions.assertEquals(2, courses.size)
-        Assertions.assertEquals(savedCourses, courses.toList())
+        assertTrue(courses.any { it.name == "Typescript bez tajemnic" })
+        assertTrue(courses.any { it.name == "Kotlin bez tajemnic" })
+    }
+
+    @Test
+    internal fun `should update an existing course and return it`() {
+        val courseToUpdate = courseRepository.save(
+            Course(null, "Kotlin bez tajemnic", "Kotlin")
+        )
+
+        val updatePayload = CourseDTO(
+            id = courseToUpdate.id,
+            name = "Java i my",
+            category = "Java 8"
+        )
+
+        val responseBody = mockMvc.put("/v1/courses/${updatePayload.id}") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(updatePayload)
+        }
+            .andExpect { status { isOk() } }
+            .andReturn().response.contentAsString
+
+        val updatedCourseDTO = objectMapper.readValue(responseBody, CourseDTO::class.java)
+        assertEquals(updatePayload.name, updatedCourseDTO.name)
+        assertEquals(updatePayload.category, updatedCourseDTO.category)
+
+        val updatedCourseInDb = courseRepository.findById(courseToUpdate.id!!).get()
+        assertEquals(updatePayload.name, updatedCourseInDb.name)
+        assertEquals(updatePayload.category, updatedCourseInDb.category)
+    }
+
+    @Test
+    internal fun `should return 404 when updating a non-existent course`() {
+        val nonExistentId = 999
+        val updatePayload = CourseDTO(id = nonExistentId, name = "Nowa nazwa", category = "Nowa kategoria")
+
+        mockMvc.put("/v1/courses/$nonExistentId") {
+                contentType = MediaType.APPLICATION_JSON
+                content = objectMapper.writeValueAsString(updatePayload)
+            }
+            .andExpect {
+                status { isNotFound() }
+            }
+    }
+
+    @Test
+    fun `should delete an existing course`() {
+        val courseToUpdate = courseRepository.save(
+            Course(null, "Kotlin bez tajemnic", "Kotlin")
+        )
+
+        assertEquals(1, courseRepository.findAll().count())
+
+        val responseBody = mockMvc.delete("/v1/courses/${courseToUpdate.id}") {
+            contentType = MediaType.APPLICATION_JSON
+        }
+            .andExpect { status { isOk() } }
+            .andReturn().response.contentAsString
+
+        assertEquals(0, courseRepository.findAll().count())
+    }
+
+    @Test
+    internal fun `should return 404 when deleting a non-existent course`() {
+        val nonExistentId = 999
+
+        mockMvc.delete("/v1/courses/$nonExistentId")
+            .andExpect {
+                status { isNotFound() }
+            }
     }
 }
