@@ -18,7 +18,7 @@ class CourseService(val courseRepository: CourseRepository, val eventPublisher: 
         logger.info { "Attempt to add new Course: $courseDTO" }
 
         val courseEntity = courseDTO.let {
-            Course(id = null, name = it.name, category = it.category)
+            Course(id = null, name = it.name!!, category = it.category!!)
         }
 
 
@@ -51,8 +51,8 @@ class CourseService(val courseRepository: CourseRepository, val eventPublisher: 
                 CourseNotFoundException("Course with id $courseId not found")
             }
             .apply {
-                name = courseDTO.name
-                category = courseDTO.category
+                name = courseDTO.name ?: name
+                category = courseDTO.category ?: category
             }
             .let {
                 CourseDTO(id = it.id, name = it.name, category = it.category)

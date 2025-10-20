@@ -7,6 +7,7 @@ import com.kotlinspring.course_catalog.exception.dto.ErrorResponse
 import com.kotlinspring.course_catalog.exception.dto.ErrorType
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.context.request.WebRequest
@@ -26,5 +27,22 @@ class CourseExceptionHandler : GlobalExceptionHandler() {
         )
 
         return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleCourseNotValid(exception: MethodArgumentNotValidException, request: WebRequest): ResponseEntity<ErrorResponse> {
+        logger.error { "Course not valid: $exception" }
+
+        val listOfErrorsDTO = exception.fieldErrors.map {
+            error ->
+                ErrorDTO(ErrorType.VALIDATION_ERROR, error.defaultMessage ?: "Invalid value for ${error.field}")
+        }
+        val errorResponse = ErrorResponse(
+            errors = listOfErrorsDTO,
+            status = HttpStatus.BAD_REQUEST.value(),
+            path = request.getDescription(false)
+        )
+
+        return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 }
