@@ -6,7 +6,9 @@ import com.kotlinspring.course_catalog.courses.entity.Course
 import com.kotlinspring.course_catalog.courses.event.CourseUpdatedEvent
 import com.kotlinspring.course_catalog.courses.exception.CourseNotFoundException
 import com.kotlinspring.course_catalog.courses.repository.CourseRepository
+import com.kotlinspring.course_catalog.courses.service.specifications.CourseSpecification
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -32,13 +34,20 @@ class CourseService(val courseRepository: CourseRepository, val eventPublisher: 
     }
 
     @Transactional(readOnly = true)
-    fun getAllCourses(): List<CourseDTO> {
-        logger.info { "Attempt to get all courses" }
+    fun getAllCourses(courseName: String?): List<CourseDTO> {
+        logger.info { "Attempt to get all courses with filters: name=$courseName" }
+
+        var spec: Specification<Course> = Specification.unrestricted()
+
+        if(!courseName.isNullOrEmpty()) {
+            spec = spec.and(CourseSpecification.hasNameLike(courseName))
+        }
 
         return courseRepository
-            .findAll()
+            .findAll(spec)
             .also { logger.info { "Successfully retrieved ${it.count()} courses" } }
             .map { CourseDTO(id = it.id, name = it.name, category = it.category) }
+
     }
 
     @Transactional
