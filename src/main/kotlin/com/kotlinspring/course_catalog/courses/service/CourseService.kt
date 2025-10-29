@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import kotlin.collections.count
 
 @Service
 class CourseService(val courseRepository: CourseRepository, val eventPublisher: ApplicationEventPublisher) : Loggable {
@@ -34,8 +35,8 @@ class CourseService(val courseRepository: CourseRepository, val eventPublisher: 
     }
 
     @Transactional(readOnly = true)
-    fun getAllCourses(courseName: String?): List<CourseDTO> {
-        logger.info { "Attempt to get all courses with filters: name=$courseName" }
+    fun getAllCourses(courseName: String?, category: String?): List<CourseDTO> {
+        logger.info { "Attempt to get all courses with filters: name=$courseName, category=$category" }
 
         var spec: Specification<Course> = Specification.unrestricted()
 
@@ -43,11 +44,32 @@ class CourseService(val courseRepository: CourseRepository, val eventPublisher: 
             spec = spec.and(CourseSpecification.hasNameLike(courseName))
         }
 
+        if(!category.isNullOrEmpty()) {
+            spec = spec.and(CourseSpecification.hasCategoryLike(category))
+        }
+
         return courseRepository
             .findAll(spec)
             .also { logger.info { "Successfully retrieved ${it.count()} courses" } }
             .map { CourseDTO(id = it.id, name = it.name, category = it.category) }
 
+    }
+
+    @Transactional(readOnly = true)
+    fun getCourse(courseId: Int): CourseDTO {
+        logger.info { "Attempt to get course with id=$courseId" }
+
+        return courseRepository
+            .findById(courseId)
+            .orElseThrow {
+                CourseNotFoundException("Course with id $courseId not found")
+            }
+            .let {
+                CourseDTO(id = it.id, name = it.name, category = it.category)
+            }
+            .also {
+                logger.info { "Successfully retrieved $it course" }
+            }
     }
 
     @Transactional

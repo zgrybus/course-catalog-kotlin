@@ -14,4 +14,14 @@ object CourseSpecification {
             builder.like(courseNameInDb, searchCourseName)
         }
     }
+
+    fun hasCategoryLike(categoryName: String): Specification<Course> {
+        return Specification {root, query, builder ->
+            val categoryInDb = builder.lower(root.get(Course_.category))
+
+            val searchCategory = "%${categoryName.lowercase()}%"
+
+            builder.like(categoryInDb, searchCategory)
+        }
+    }
 }

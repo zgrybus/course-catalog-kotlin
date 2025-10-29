@@ -69,6 +69,51 @@ class CourseControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /v1/course/{courseId}")
+    inner class GetCourseByIdTests {
+        @Test
+        internal fun `should return an existing`() {
+            val savedCourses = courseRepository.saveAll(listOf(
+                Course(null, "Typescript bez tajemnic", "Typescript"),
+                Course(null, "Kotlin bez tajemnic", "Kotlin"),
+            ))
+
+            val firstCourseId = savedCourses.first().id
+
+            val responseBody = mockMvc.get("/v1/courses/$firstCourseId") {
+                contentType = MediaType.APPLICATION_JSON
+            }.andExpect {
+                status { isOk() }
+            }.andReturn().response.contentAsString
+
+            val course = objectMapper.readValue(responseBody, CourseDTO::class.java)
+            assertNotNull(course)
+            assertEquals("Typescript bez tajemnic", course.name)
+            assertEquals("Typescript", course.category)
+        }
+
+        @Test
+        internal fun `should return 404, when course does not exist`() {
+            courseRepository.saveAll(listOf(
+                Course(null, "Typescript bez tajemnic", "Typescript"),
+                Course(null, "Kotlin bez tajemnic", "Kotlin"),
+            ))
+
+            val responseBody = mockMvc.get("/v1/courses/9999999") {
+                contentType = MediaType.APPLICATION_JSON
+            }.andExpect {
+                status { isNotFound() }
+            }.andReturn().response.contentAsString
+
+            val errorResponse = objectMapper.readValue(responseBody, ErrorResponse::class.java)
+
+            assertEquals(1, errorResponse.errors.size)
+            assertEquals(ErrorType.NOT_FOUND, errorResponse.errors[0].type)
+            assertEquals("Course with id 9999999 not found", errorResponse.errors[0].message)
+        }
+    }
+
+    @Nested
     @DisplayName("GET /v1/courses")
     inner class GetAllCoursesTests {
         @Test
@@ -89,6 +134,69 @@ class CourseControllerTest {
 
             assertTrue(courses.any { it.name == "Typescript bez tajemnic" })
             assertTrue(courses.any { it.name == "Kotlin bez tajemnic" })
+        }
+
+        @Test
+        internal fun `should return courses that contains provided name`() {
+            courseRepository.saveAll(listOf(
+                Course(null, "Typescript bez tajemnic", "Typescript"),
+                Course(null, "Kotlin bez tajemnic", "Kotlin"),
+            ))
+
+            val responseBody = mockMvc.get("/v1/courses?name=Typescript") {
+                contentType = MediaType.APPLICATION_JSON
+            }.andExpect {
+                status { isOk() }
+            }.andReturn().response.contentAsString
+
+            val courses = objectMapper.readValue(responseBody, Array<CourseDTO>::class.java).toList()
+            assertEquals(1, courses.size)
+
+            assertEquals("Typescript bez tajemnic", courses[0].name)
+            assertEquals("Typescript", courses[0].category)
+        }
+
+        @Test
+        internal fun `should return courses that contains provided category`() {
+            courseRepository.saveAll(listOf(
+                Course(null, "Typescript bez tajemnic", "Typescript"),
+                Course(null, "Kotlin bez tajemnic", "Kotlin"),
+            ))
+
+            val responseBody = mockMvc.get("/v1/courses?category=Kotlin") {
+                contentType = MediaType.APPLICATION_JSON
+            }.andExpect {
+                status { isOk() }
+            }.andReturn().response.contentAsString
+
+            val courses = objectMapper.readValue(responseBody, Array<CourseDTO>::class.java).toList()
+            assertEquals(1, courses.size)
+
+            assertEquals("Kotlin bez tajemnic", courses[0].name)
+            assertEquals("Kotlin", courses[0].category)
+        }
+
+        @Test
+        internal fun `should return courses that contains provided category and name`() {
+            courseRepository.saveAll(listOf(
+                Course(null, "Typescript bez tajemnic", "Typescript"),
+                Course(null, "Kotlin bez tajemnic", "Typescript"),
+            ))
+
+            val responseBody = mockMvc.get("/v1/courses?category=Typescript&name=bez") {
+                contentType = MediaType.APPLICATION_JSON
+            }.andExpect {
+                status { isOk() }
+            }.andReturn().response.contentAsString
+
+            val courses = objectMapper.readValue(responseBody, Array<CourseDTO>::class.java).toList()
+            assertEquals(2, courses.size)
+
+            assertEquals("Typescript bez tajemnic", courses[0].name)
+            assertEquals("Typescript", courses[0].category)
+
+            assertEquals("Kotlin bez tajemnic", courses[1].name)
+            assertEquals("Typescript", courses[1].category)
         }
 
         @Test
@@ -140,13 +248,20 @@ class CourseControllerTest {
             val nonExistentId = 999
             val updatePayload = CourseDTO(id = nonExistentId, name = "Nowa nazwa", category = "Nowa kategoria")
 
-            mockMvc.put("/v1/courses/$nonExistentId") {
+            val responseBody = mockMvc.put("/v1/courses/$nonExistentId") {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(updatePayload)
             }
                 .andExpect {
                     status { isNotFound() }
                 }
+                .andReturn().response.contentAsString
+
+            val errorResponse = objectMapper.readValue(responseBody, ErrorResponse::class.java)
+
+            assertEquals(1, errorResponse.errors.size)
+            assertEquals(ErrorType.NOT_FOUND, errorResponse.errors[0].type)
+            assertEquals("Course with id 999 not found", errorResponse.errors[0].message)
         }
 
         @Test

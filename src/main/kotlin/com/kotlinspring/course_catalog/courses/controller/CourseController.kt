@@ -28,8 +28,13 @@ class CourseController(val courseService: CourseService) {
     }
 
     @GetMapping
-    fun getAllCourses(@RequestParam(name="course_name", required=false) courseName: String?): List<CourseDTO> {
-        return courseService.getAllCourses(courseName)
+    fun getAllCourses(@RequestParam(name="name", required=false) courseName: String?, @RequestParam(name="category", required = false) category: String?): List<CourseDTO> {
+        return courseService.getAllCourses(courseName, category)
+    }
+
+    @GetMapping("/{courseId}")
+    fun getCourse(@PathVariable courseId: Int): CourseDTO {
+        return courseService.getCourse(courseId)
     }
 
     @PutMapping("/{courseId}")
